@@ -1,0 +1,75 @@
+# ======================================================================================
+# EC2 서버용 Systemd 서비스 파일 - benefits-api.service
+# ======================================================================================
+#
+# 설치 위치: /etc/systemd/system/benefits-api.service
+#
+# 사용 명령어:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable benefits-api
+#   sudo systemctl start benefits-api
+#   sudo systemctl status benefits-api
+#
+# ======================================================================================
+
+[Unit]
+Description=Benefits API - Personalized Recommendation Service
+Documentation=https://github.com/your-repo/benefits-api
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+User=benefits
+Group=benefits
+WorkingDirectory=/opt/benefits-api/app
+
+# 환경 설정
+Environment=PATH=/opt/benefits-api/venv/bin
+EnvironmentFile=/opt/benefits-api/app/.env
+
+# Gunicorn 실행 명령
+ExecStart=/opt/benefits-api/venv/bin/gunicorn \
+    --bind 127.0.0.1:5000 \
+    --workers 4 \
+    --threads 2 \
+    --worker-class gthread \
+    --timeout 120 \
+    --keep-alive 5 \
+    --max-requests 1000 \
+    --max-requests-jitter 100 \
+    --preload \
+    --access-logfile /var/log/benefits-api/access.log \
+    --error-logfile /var/log/benefits-api/error.log \
+    --log-level info \
+    --capture-output \
+    app:app
+
+# 재시작 및 상태 관리
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+Restart=always
+RestartSec=3
+TimeoutStartSec=30
+TimeoutStopSec=30
+
+# 표준 출력/에러 처리
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=benefits-api
+
+# 보안 설정
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/benefits-api /var/log/benefits-api
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+# 리소스 제한
+LimitNOFILE=65535
+LimitNPROC=4096
+
+[Install]
+WantedBy=multi-user.target

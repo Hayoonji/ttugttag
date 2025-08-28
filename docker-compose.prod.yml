@@ -1,0 +1,61 @@
+# ======================================================================================
+# Docker Compose 설정 (프로덕션 환경) - 최소 설정 버전
+# ======================================================================================
+
+services:
+  # 데이터베이스 초기화 서비스
+  init-db:
+    build: .
+    volumes:
+      - ./enhanced_db:/app/data/cafe_vector_db
+    working_dir: /app
+    command: >
+      sh -c "
+        chmod +x /app/setup_database_enhanced.sh &&
+        /app/setup_database_enhanced.sh
+      "
+    profiles:
+      - init
+
+  # 메인 애플리케이션 서비스
+  app:
+    build: .
+    restart: always
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./enhanced_db:/app/data/cafe_vector_db:ro
+      - ./logs:/app/logs
+      - ./logs:/var/log/benefits-api
+    environment:
+      - FLASK_DEBUG=false
+      - ENVIRONMENT=production
+      - PORT=5001
+      - HOST=0.0.0.0
+      - CLOVA_OCR_API_KEY=SGdQdEhGV2lxZXVTUWRja1hmS0hOcG9pTXdFdU9pbFo=
+      - CLOVA_OCR_SECRET_KEY=SGdQdEhGV2lxZXVTUWRja1hmS0hOcG9pTXdFdU9pbFo=
+      - CLOVA_OCR_INVOKE_URL=http://clovaocr-api-kr.ncloud.com/external/v1/45249/c2af6d9dc5eaf151ca0bc1b590815119b0f6e82921c3c89327ce90302b8c5e86
+    env_file:
+      - .env.docker
+    depends_on:
+      - postgres
+      - redis
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass defaultpassword
+
+  # PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=benefits_api
+      - POSTGRES_USER=benefits
+      - POSTGRES_PASSWORD=defaultpassword

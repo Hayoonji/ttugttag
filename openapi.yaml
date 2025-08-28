@@ -1,0 +1,733 @@
+openapi: 3.0.0
+info:
+  title: 혜택 추천 챗봇 API
+  description: |
+    AI 기반 개인화된 혜택 추천 및 챗봇 서비스 API
+
+    ## 주요 기능
+    - 🤖 자연어 챗봇 인터페이스
+    - 🎯 AI 기반 개인화 혜택 추천
+    - 🔍 실시간 웹 검색 보완 (결과 3개 미만 시)
+    - 📊 소비 패턴 분석
+
+    ## Flutter 개발자를 위한 팁
+    - `/api/chat` 엔드포인트를 주로 사용하세요
+    - `user_id`는 앱에서 생성한 고유 ID 사용
+    - 웹 검색 보완 기능으로 항상 충분한 결과 제공
+
+  version: 2.1.0-ec2
+  contact:
+    name: API Support
+    email: support@example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost
+    description: 로컬 개발 서버
+  - url: http://your-server-ip
+    description: EC2 프로덕션 서버
+  - url: https://your-domain.com
+    description: HTTPS 프로덕션 서버
+
+tags:
+  - name: Chat
+    description: 챗봇 대화 관련 API
+  - name: Search
+    description: 혜택 검색 관련 API
+  - name: System
+    description: 시스템 상태 관련 API
+
+paths:
+  /api/chat:
+    post:
+      tags: [Chat]
+      summary: 챗봇 메시지 전송
+      description: |
+        가장 핵심적인 API입니다. Flutter 앱에서 주로 사용하세요.
+
+        ### 특징
+        - 자연어 질문 처리
+        - 자동 웹 검색 보완 (결과 부족 시)
+        - 개인화된 응답 생성
+        - 추천 질문 제공
+
+        ### Flutter 사용법
+        ```dart
+        final response = await apiService.sendChatMessage(
+          message: "스타벅스 혜택 알려주세요",
+          userId: "flutter_user_12345"
+        );
+        ```
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatRequest"
+            examples:
+              basic:
+                summary: 기본 질문
+                value:
+                  message: "스타벅스 혜택 알려주세요"
+                  user_id: "flutter_user_12345"
+                  user_context:
+                    spending_history: []
+              personalized:
+                summary: 개인화된 질문
+                value:
+                  message: "내 소비패턴에 맞는 혜택 추천해주세요"
+                  user_id: "flutter_user_12345"
+                  user_context:
+                    spending_history:
+                      - brand: "스타벅스"
+                        category: "카페"
+                        amount: 5000
+                        date: "2024-01-15"
+                      - brand: "맥도날드"
+                        category: "패스트푸드"
+                        amount: 8000
+                        date: "2024-01-14"
+      responses:
+        "200":
+          description: 성공적인 응답
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatResponse"
+              examples:
+                success:
+                  summary: 성공 응답
+                  value:
+                    success: true
+                    response:
+                      message: "스타벅스 관련 혜택을 찾았습니다! 🎉\n\n1. **스타벅스 사이렌오더** - 별 적립 혜택\n구매 금액의 2% 별 적립\n\n2. **신한카드 스타벅스 혜택** - 10% 할인\n신한카드 결제 시 매월 5만원 한도"
+                      timestamp: "2024-01-20T10:30:00Z"
+                      data:
+                        total_results: 5
+                        web_search_used: false
+                        search_strategy:
+                          categories_found: ["카페"]
+                          brands_found: ["스타벅스"]
+                        suggestions:
+                          - "이디야 혜택도 알려주세요"
+                          - "카페 할인카드 추천해주세요"
+                    search_results:
+                      - id: "benefit_001"
+                        metadata:
+                          title: "스타벅스 사이렌오더 적립"
+                          brand: "스타벅스"
+                          category: "카페"
+                          benefit_type: "적립"
+                          discount_rate: "별 1개당 12.5원"
+                          conditions: "사이렌오더 결제 시"
+                          valid_from: "2024-01-01"
+                          valid_to: "2024-12-31"
+                          source: "내부데이터"
+                        similarity_score: 0.95
+                        search_type: "direct_brand"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /api/search:
+    post:
+      tags: [Search]
+      summary: 혜택 검색
+      description: |
+        직접적인 혜택 검색 API입니다.
+
+        ### 웹 검색 보완 기능
+        - 검색 결과가 3개 미만일 때 자동으로 웹 검색 실행
+        - 네이버 검색 API 우선 사용 (API 키 설정 시)
+        - 실시간 최신 정보 보완
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchRequest"
+            examples:
+              simple:
+                summary: 간단 검색
+                value:
+                  query: "카페 할인"
+                  top_k: 5
+              personalized:
+                summary: 개인화 검색
+                value:
+                  query: "마트 혜택"
+                  user_history:
+                    preferred_brands: ["이마트", "홈플러스"]
+                    preferred_categories: ["마트"]
+                  top_k: 10
+                  debug: false
+      responses:
+        "200":
+          description: 검색 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResponse"
+              examples:
+                success:
+                  summary: 검색 성공 (웹 검색 보완 포함)
+                  value:
+                    success: true
+                    query: "테슬라 충전 할인"
+                    extracted_categories: []
+                    extracted_brands: ["테슬라"]
+                    results:
+                      - id: "web_테슬라충전할인_0"
+                        metadata:
+                          title: "테슬라 슈퍼차저 할인 이벤트"
+                          brand: "테슬라"
+                          category: "기타"
+                          benefit_type: "웹검색"
+                          discount_rate: "상세정보 확인 필요"
+                          conditions: "웹사이트 확인 필요"
+                          valid_from: "2024-01-20"
+                          valid_to: "상세정보 확인 필요"
+                          source: "웹검색"
+                          url: "https://example.com/tesla-charging"
+                          search_keyword: "테슬라 충전 할인"
+                        similarity_score: 0.7
+                        search_type: "web_search"
+                    total_found: 3
+                    web_search_used: true
+                    timestamp: "2024-01-20T10:30:00Z"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/recommend:
+    post:
+      tags: [Search]
+      summary: AI 개인화 추천
+      description: |
+        사용자의 소비 패턴을 분석하여 맞춤형 혜택을 추천합니다.
+
+        ### 개인화 요소
+        - 소비 이력 분석
+        - 선호 브랜드/카테고리 가중치
+        - 최근성 점수 적용
+        - AI 생성 추천 텍스트
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecommendRequest"
+            example:
+              query: "맞춤 혜택 추천"
+              user_profile:
+                preferred_brands: ["스타벅스", "맥도날드"]
+                preferred_categories: ["카페", "패스트푸드"]
+                total_transactions: 50
+                average_spending:
+                  카페: 4500
+                  패스트푸드: 8000
+              spending_history:
+                - brand: "스타벅스"
+                  category: "카페"
+                  amount: 5000
+                  date: "2024-01-15"
+              top_k: 10
+      responses:
+        "200":
+          description: 추천 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecommendResponse"
+
+  /health:
+    get:
+      tags: [System]
+      summary: 헬스체크
+      description: |
+        서버와 주요 구성요소의 상태를 확인합니다.
+
+        Flutter 앱 시작 시 서버 연결 상태 확인에 사용하세요.
+
+      responses:
+        "200":
+          description: 시스템 정상
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              example:
+                status: "healthy"
+                service: "EC2 개인화된 혜택 추천 API v2.1"
+                database_connected: true
+                rag_system_loaded: true
+                version: "2.1.0-ec2"
+                timestamp: "2024-01-20T10:30:00Z"
+                environment: "production"
+        "500":
+          description: 시스템 오류
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/categories:
+    get:
+      tags: [System]
+      summary: 지원 카테고리 목록
+      description: |
+        시스템에서 지원하는 모든 카테고리와 관련 키워드를 조회합니다.
+
+        Flutter 앱에서 카테고리 선택 UI에 활용하세요.
+
+      responses:
+        "200":
+          description: 카테고리 목록
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoriesResponse"
+              example:
+                categories:
+                  [
+                    "카페",
+                    "마트",
+                    "편의점",
+                    "온라인쇼핑",
+                    "배달음식",
+                    "뷰티",
+                    "패스트푸드",
+                    "주유소",
+                  ]
+                category_details:
+                  카페:
+                    [
+                      "카페",
+                      "커피",
+                      "coffee",
+                      "스타벅스",
+                      "이디야",
+                      "투썸플레이스",
+                    ]
+                  마트:
+                    ["마트", "mart", "슈퍼", "이마트", "홈플러스", "롯데마트"]
+                timestamp: "2024-01-20T10:30:00Z"
+
+  /api/info:
+    get:
+      tags: [System]
+      summary: API 정보
+      description: API 버전, 기능, 엔드포인트 정보를 제공합니다.
+      responses:
+        "200":
+          description: API 정보
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiInfoResponse"
+
+  /api/stats:
+    get:
+      tags: [System]
+      summary: 데이터베이스 통계
+      description: 데이터베이스 연결 상태와 통계 정보를 제공합니다.
+      responses:
+        "200":
+          description: 통계 정보
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatsResponse"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+components:
+  schemas:
+    ChatRequest:
+      type: object
+      required: [message, user_id]
+      properties:
+        message:
+          type: string
+          description: 사용자 메시지/질문
+          example: "스타벅스 혜택 알려주세요"
+          minLength: 1
+          maxLength: 500
+        user_id:
+          type: string
+          description: 고유 사용자 ID (Flutter에서 생성)
+          example: "flutter_user_12345"
+          pattern: "^[a-zA-Z0-9_-]+$"
+        user_context:
+          type: object
+          description: 사용자 컨텍스트 정보
+          properties:
+            spending_history:
+              type: array
+              description: 소비 이력
+              items:
+                $ref: "#/components/schemas/SpendingRecord"
+
+    ChatResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: 요청 성공 여부
+        response:
+          type: object
+          properties:
+            message:
+              type: string
+              description: AI 생성 응답 메시지
+            timestamp:
+              type: string
+              format: date-time
+              description: 응답 생성 시간
+            data:
+              type: object
+              properties:
+                total_results:
+                  type: integer
+                  description: 총 검색 결과 수
+                web_search_used:
+                  type: boolean
+                  description: 웹 검색 보완 사용 여부
+                search_strategy:
+                  type: object
+                  description: 사용된 검색 전략 정보
+                suggestions:
+                  type: array
+                  description: 추천 질문 목록
+                  items:
+                    type: string
+        search_results:
+          type: array
+          description: 검색된 혜택 결과 목록
+          items:
+            $ref: "#/components/schemas/BenefitResult"
+        error:
+          type: string
+          description: 오류 메시지 (실패 시)
+
+    SearchRequest:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+          description: 검색 질의
+          example: "카페 할인"
+        user_history:
+          type: object
+          description: 사용자 이력 정보
+          properties:
+            preferred_brands:
+              type: array
+              items:
+                type: string
+            preferred_categories:
+              type: array
+              items:
+                type: string
+        top_k:
+          type: integer
+          description: 반환할 최대 결과 수
+          default: 5
+          minimum: 1
+          maximum: 20
+        debug:
+          type: boolean
+          description: 디버그 모드
+          default: false
+
+    SearchResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        query:
+          type: string
+        extracted_categories:
+          type: array
+          items:
+            type: string
+        extracted_brands:
+          type: array
+          items:
+            type: string
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/BenefitResult"
+        total_found:
+          type: integer
+        web_search_used:
+          type: boolean
+          description: 웹 검색 보완 기능 사용 여부
+        search_strategy:
+          type: object
+          description: 적용된 검색 전략 정보
+        timestamp:
+          type: string
+          format: date-time
+
+    RecommendRequest:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+          example: "맞춤 혜택 추천"
+        user_profile:
+          type: object
+          description: 사용자 프로필 정보
+        spending_history:
+          type: array
+          items:
+            $ref: "#/components/schemas/SpendingRecord"
+        top_k:
+          type: integer
+          default: 10
+
+    RecommendResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        query:
+          type: string
+        ai_response:
+          type: string
+          description: AI 생성 추천 텍스트
+        search_results:
+          type: array
+          items:
+            $ref: "#/components/schemas/BenefitResult"
+        user_profile_summary:
+          type: object
+          description: 사용자 프로필 요약
+        timestamp:
+          type: string
+          format: date-time
+
+    BenefitResult:
+      type: object
+      properties:
+        id:
+          type: string
+          description: 혜택 고유 ID
+        metadata:
+          $ref: "#/components/schemas/BenefitMetadata"
+        similarity_score:
+          type: number
+          format: float
+          description: 유사도 점수 (0-1)
+        search_type:
+          type: string
+          enum: [direct_category, direct_brand, vector, web_search, generic_web]
+          description: 검색 방식
+
+    BenefitMetadata:
+      type: object
+      properties:
+        title:
+          type: string
+          description: 혜택 제목
+        brand:
+          type: string
+          description: 브랜드명
+        category:
+          type: string
+          description: 카테고리
+        benefit_type:
+          type: string
+          description: 혜택 유형 (할인, 적립, 쿠폰 등)
+        discount_rate:
+          type: string
+          description: 할인율 또는 혜택 정도
+        conditions:
+          type: string
+          description: 혜택 조건
+        valid_from:
+          type: string
+          description: 유효기간 시작
+        valid_to:
+          type: string
+          description: 유효기간 종료
+        source:
+          type: string
+          description: 데이터 출처
+        url:
+          type: string
+          description: 관련 웹사이트 URL (웹 검색 결과의 경우)
+        search_keyword:
+          type: string
+          description: 웹 검색에 사용된 키워드 (웹 검색 결과의 경우)
+
+    SpendingRecord:
+      type: object
+      properties:
+        brand:
+          type: string
+          description: 브랜드명
+          example: "스타벅스"
+        category:
+          type: string
+          description: 카테고리
+          example: "카페"
+        amount:
+          type: number
+          description: 소비 금액
+          example: 5000
+        date:
+          type: string
+          format: date
+          description: 소비 날짜
+          example: "2024-01-15"
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+        service:
+          type: string
+        database_connected:
+          type: boolean
+        rag_system_loaded:
+          type: boolean
+        version:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        environment:
+          type: string
+
+    CategoriesResponse:
+      type: object
+      properties:
+        categories:
+          type: array
+          items:
+            type: string
+        category_details:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    ApiInfoResponse:
+      type: object
+      properties:
+        service_name:
+          type: string
+        version:
+          type: string
+        description:
+          type: string
+        deployment:
+          type: string
+        features:
+          type: array
+          items:
+            type: string
+        endpoints:
+          type: object
+        status:
+          type: string
+        database_status:
+          type: string
+
+    StatsResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        total_documents:
+          type: integer
+        available_brands:
+          type: integer
+        available_categories:
+          type: integer
+        collection_name:
+          type: string
+        db_path:
+          type: string
+        metadata_loaded:
+          type: boolean
+        timestamp:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: 오류 메시지
+        timestamp:
+          type: string
+          format: date-time
+
+  responses:
+    BadRequest:
+      description: 잘못된 요청
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            error: "필수 파라미터가 누락되었습니다"
+            timestamp: "2024-01-20T10:30:00Z"
+
+    InternalError:
+      description: 서버 내부 오류
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            error: "서버 내부 오류가 발생했습니다"
+            timestamp: "2024-01-20T10:30:00Z"
+
+    ServiceUnavailable:
+      description: 서비스 사용 불가
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            error: "RAG 시스템이 초기화되지 않았습니다"
+            timestamp: "2024-01-20T10:30:00Z"
+
+  securitySchemes: {}
+
+# 보안 스키마 (현재 미사용)
+security: []
+
+# 추가 정보
+externalDocs:
+  description: API 사용 가이드 및 예제
+  url: https://github.com/your-repo/api-docs

@@ -1,0 +1,49 @@
+# ======================================================================================
+# 간단한 Docker Compose 설정 (단일 앱 실행용)
+# ======================================================================================
+
+version: "3.8"
+
+services:
+  # 메인 애플리케이션 서비스
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: benefits-api-simple
+    restart: unless-stopped
+    environment:
+      - FLASK_DEBUG=false
+      - ENVIRONMENT=production
+      - PORT=5000
+      - HOST=0.0.0.0
+      - LOG_LEVEL=INFO
+    env_file:
+      - .env.docker
+    ports:
+      - "5000:5000"
+    volumes:
+      # 데이터 볼륨
+      - ./enhanced_db:/app/data/cafe_vector_db:ro
+      # 로그 볼륨
+      - ./logs:/app/logs
+    networks:
+      - benefits-simple-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+# 네트워크 설정
+networks:
+  benefits-simple-network:
+    driver: bridge
+    name: benefits-simple-network
+
+# 볼륨 설정
+volumes:
+  app_logs:
+    name: benefits-app-logs-simple
+    driver: local 
